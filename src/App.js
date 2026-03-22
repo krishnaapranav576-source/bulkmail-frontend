@@ -40,7 +40,7 @@ function App() {
 
     setstatus(true);
 
-    axios.post("http://localhost:3005/sendemail", {
+    axios.post("https://bulkmail-backend-hdcs.onrender.com/sendemail", {
       subject,
       msg,
       emailList,
