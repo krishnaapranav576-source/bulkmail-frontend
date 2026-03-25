@@ -1,58 +1,86 @@
-import nodemailer from "nodemailer"
-import mongoose from "mongoose"
+import nodemailer from "nodemailer";
+import mongoose from "mongoose";
 
-let isConnected = false
+const MONGO =
+  "mongodb+srv://krishnaapranav576:Pranav%402026@cluster0.absqqdo.mongodb.net/passkey";
 
-async function connectDB() {
+let cached = global.mongoose;
 
-  if (isConnected) return
-
-  await mongoose.connect(
-    "mongodb+srv://krishnaapranav576:Pranav%402026@cluster0.absqqdo.mongodb.net/passkey"
-  )
-
-  isConnected = true
+if (!cached) {
+  cached = global.mongoose = { conn: null };
 }
 
+async function connectDB() {
+  if (cached.conn) return cached.conn;
+
+  cached.conn = await mongoose.connect(MONGO);
+  return cached.conn;
+}
+
+const credentialSchema = new mongoose.Schema({}, { strict: false });
+
+const mailSchema = new mongoose.Schema({
+  subject: String,
+  body: String,
+  emails: [String],
+  status: String,
+  date: { type: Date, default: Date.now },
+});
+
+const Credential =
+  mongoose.models.credential ||
+  mongoose.model("credential", credentialSchema, "bulkmail");
+
+const Mail =
+  mongoose.models.mail ||
+  mongoose.model("mail", mailSchema);
+
 export default async function handler(req, res) {
-
   if (req.method !== "POST") {
-    return res.status(405).send("Only POST")
+    return res.status(405).send("Only POST");
   }
 
-  await connectDB()
+  try {
+    await connectDB();
 
-  const credential = mongoose.model(
-    "credential",
-    {},
-    "bulkmail"
-  )
+    const { subject, msg, emailList } = req.body;
 
-  const data = await credential.find()
+    const data = await Credential.find();
 
-  const user = data[0].user
-  const pass = data[0].pass
+    if (!data.length) {
+      return res.status(500).send("No credential");
+    }
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user,
-      pass,
-    },
-  })
+    const user = data[0].user;
+    const pass = data[0].pass;
 
-  const { subject, msg, emailList } = req.body
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user,
+        pass,
+      },
+    });
 
-  for (let i = 0; i < emailList.length; i++) {
+    for (let email of emailList) {
+      await transporter.sendMail({
+        from: user,
+        to: email,
+        subject,
+        text: msg,
+      });
+    }
 
-    await transporter.sendMail({
-      from: user,
-      to: emailList[i],
+    await Mail.create({
       subject,
-      text: msg,
-    })
+      body: msg,
+      emails: emailList,
+      status: "sent",
+    });
 
+    res.status(200).json(true);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json(false);
   }
-
-  res.status(200).json(true)
 }
