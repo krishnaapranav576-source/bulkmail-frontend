@@ -35,16 +35,16 @@ function App() {
 
     reader.readAsBinaryString(file);
   }
+function send() {
 
-  function send() {
+  setstatus(true);
 
-    setstatus(true);
-
-    axios.post("https://bulkmail-backend-hdcs.onrender.com/sendemail", {
-      subject,
-      msg,
-      emailList,
-    })
+ 
+  axios.post("/api/sendemail", {
+  subject,
+  msg,
+  emailList,
+})
       .then(res => {
 
         if (res.data === true) {
