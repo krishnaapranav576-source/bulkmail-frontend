@@ -4,17 +4,13 @@ import mongoose from "mongoose";
 const MONGO =
   "mongodb+srv://krishnaapranav576:Pranav%402026@cluster0.absqqdo.mongodb.net/passkey";
 
-let cached = global.mongoose;
-
-if (!cached) {
-  cached = global.mongoose = { conn: null };
-}
+let isConnected = false;
 
 async function connectDB() {
-  if (cached.conn) return cached.conn;
+  if (isConnected) return;
 
-  cached.conn = await mongoose.connect(MONGO);
-  return cached.conn;
+  await mongoose.connect(MONGO);
+  isConnected = true;
 }
 
 const credentialSchema = new mongoose.Schema({}, { strict: false });
@@ -55,7 +51,9 @@ export default async function handler(req, res) {
     const pass = data[0].pass;
 
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.office365.com",
+      port: 587,
+      secure: false,
       auth: {
         user,
         pass,
